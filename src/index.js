@@ -16,23 +16,24 @@ class Square extends React.Component {
         super(props);
         this.hoverTemp=null;
         this.state={
-            color: props.color
+            color: props.color,
         }
     }
 
     componentWillReceiveProps(nextProps) {
         this.hoverTemp = nextProps.color;
         this.setState({color: nextProps.color});
-
     }
 
     hoverLeave(){
         this.setState({color: this.hoverTemp});
+        this.props.squareLeft()
     }
 
     hoverEnter(){
         this.hoverTemp = this.state.color;
         this.setState({color: "#D3D3D3"});
+        this.props.squareEntered();
     }
 
     render() {
@@ -46,15 +47,54 @@ class Square extends React.Component {
              }
 }
 
-class Board extends React.Component {
+
+
+class Canvas extends React.Component {
 
     constructor(props) {
         super(props);
         this.numRows=20;
         this.numCols=20;
         this.state={
+            firstRender: true,
+            boardInfo: ""
+        }
+    }
+
+    handleInfoChange = (boardInfo) =>{
+        this.setState({firstRender:false, boardInfo: boardInfo});
+    }
+
+    render() {
+        return (
+            <div className = "game">
+                <BitMap shouldRender = {this.state.firstRender} onPixelHover = {this.handleInfoChange}/>
+                <div className = "row">
+                    <div className="large-6 columns game-info">
+                        {this.state.boardInfo}
+                    </div>
+                    <div className="large-6 columns input">
+                        {"blah"}
+                    </div>
+                </div>
+            </div>
+       );
+    }
+}
+class BitMap extends React.Component {
+
+    constructor(props) {
+        super(props);
+        this.numRows=20;
+        this.numCols=20;
+
+        this.state = {
             squares: Array(this.numRows*this.numCols).fill(null),
         }
+    }
+
+    shouldComponentUpdate(){
+        return this.props.shouldRender
     }
 
     componentDidMount() {
@@ -70,14 +110,27 @@ class Board extends React.Component {
             storageInstance.deployed().then((contractInstance) => {
                 const allEvents = contractInstance.allEvents({
                     fromBlock: 0,
-                     toBlock:'latest'
+                    toBlock:'latest'
                  });
-                 console.log("here")
-                 allEvents.watch((err,res) => {
-                     let pixelNum = res.args.pixelNumber.c[0];
+
+                 allEvents.get((err,logs) => {
                      const squares = this.state.squares.slice();
-                     squares[pixelNum]="#000000";
-                     this.setState({squares: squares});
+                     for (let i = 0; i < logs.length; i++) {
+                         let elem = logs[i].args;
+                         squares[elem.pixelNumber.c[0]] = new PixelElement("#000000", elem.amountPaid.c[0]);
+                    }
+                    this.setState({squares: squares})
+                 })
+
+                 contractInstance.allEvents({
+                     fromBlock: 'latest',
+                     toBlock:'latest'
+                  }).watch((err,res) => {
+                      let elem = res.args;
+                      let pixelNum = elem.pixelNumber.c[0];
+                      const squares = this.state.squares.slice();
+                      squares[pixelNum]= new PixelElement("#000000", elem.amountPaid.c[0]);
+                      this.setState({squares: squares});
                 })
             })
         })
@@ -86,24 +139,36 @@ class Board extends React.Component {
         })
     }
 
-    handleClick(pixelNum) {
+    purchasePixel(pixelNum) {
         web3.eth.getAccounts((error, accounts) => {
             let contractInstance;
             storageInstance.deployed().then((instance) => {
                 contractInstance = instance;
-                return contractInstance.set(pixelNum,1,{from: accounts[0]});
+                return contractInstance.set(pixelNum,1,{value: 100000000000000000,from: accounts[0]});
             }).then((res) =>{
                 console.log(res.valueOf());
             });
         });
     }
 
+    squareEntered(pixelNum) {
+        let amount = this.state.squares[pixelNum] ? this.state.squares[pixelNum].amountPaid: 0;
+        let infoText = "Highest Bid is currently:" + web3.fromWei(amount, 'ether') + " ether.";
+        this.props.onPixelHover(infoText)
+    }
+
+    squareLeft(pixelNum) {
+        this.props.onPixelHover("");
+    }
+
     renderSquare(pixelNum) {
         return <Square
-            color = {this.state.squares[pixelNum]}
-            onClick = {() => this.handleClick(pixelNum)}
+            color = {this.state.squares[pixelNum] ? this.state.squares[pixelNum].color: null}
+            paid = {this.state.squares[pixelNum] ? this.state.squares[pixelNum].amountPaid: null}
+            onClick = {() => this.purchasePixel(pixelNum)}
+            squareEntered = {() => this.squareEntered(pixelNum)}
+            squareLeft = {() =>  this.squareLeft(pixelNum)}
             />;
-
     }
 
     renderRow(rowNum, numCols) {
@@ -125,36 +190,24 @@ class Board extends React.Component {
             return row
         });
     }
+
     render() {
+
         return (
-          <div>
-          {
-              this.renderBoard()
-          }
-         </div>
-       );
+            <div className = "game-board">
+            {
+                this.renderBoard()
+            }
+            </div>
+        );
     }
 }
 
-class PixelMap extends React.Component {
-    constructor(props) {
-        super(props);
+class PixelElement {
+    constructor(color, amountPaid) {
+        this.color = color;
+        this.amountPaid = amountPaid;
     }
-
-
-    render() {
-        return (
-          <div className="game">
-            <div className="game-board">
-              <Board />
-            </div>
-            <div className="game-info">
-              <div>{/* status */}</div>
-              <ol>{/* TODO */}</ol>
-            </div>
-          </div>
-        );
-      }
 }
 
 class App extends React.Component {
@@ -165,7 +218,7 @@ class App extends React.Component {
                     <div className = "main-container">
                         <div className="row">
                             <div className = "large-12 columns">
-                                <PixelMap />
+                                <Canvas />
                             </div>
                         </div>
                     </div>
