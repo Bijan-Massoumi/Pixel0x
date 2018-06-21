@@ -88,7 +88,7 @@ class BitMap extends React.Component {
                      const squares = this.state.squares.slice();
                      for (let i = 0; i < logs.length; i++) {
                          let elem = logs[i].args;
-                         squares[elem.pixelNumber.c[0]] = new PixelElement("#000000", elem.amountPaid.c[0]);
+                         squares[elem.pixelNumber.c[0]] = new PixelElement("#000000", elem.amountPaid);
                     }
                     this.hasChanged = true;
                     this.setState({squares: squares})
@@ -99,9 +99,11 @@ class BitMap extends React.Component {
                      toBlock:'latest'
                   }).watch((err,res) => {
                       let elem = res.args;
+                      console.log(elem.pixelNumber);
                       let pixelNum = elem.pixelNumber.c[0];
                       const squares = this.state.squares.slice();
-                      squares[pixelNum]= new PixelElement("#000000", elem.amountPaid.c[0]);
+                      console.log(elem.amountPaid)
+                      squares[pixelNum]= new PixelElement("#000000", elem.amountPaid);
                       this.hasChanged = true;
                       this.setState({squares: squares});
                 })
@@ -117,7 +119,7 @@ class BitMap extends React.Component {
             let contractInstance;
             storageInstance.deployed().then((instance) => {
                 contractInstance = instance;
-                return contractInstance.set(pixelNum,1,{value: 100000000000000000,from: accounts[0]});
+                return contractInstance.set(pixelNum,1,{value: 10000,from: accounts[0]});
             }).then((res) =>{
                 console.log(res.valueOf());
             });
