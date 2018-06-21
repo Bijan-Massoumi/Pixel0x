@@ -9,13 +9,12 @@ import './foundation.min.css';
 let storageInstance;
 let web3;
 
-
 class Square extends React.Component {
 
     constructor(props) {
         super(props);
         this.hoverTemp=null;
-        this.state={
+        this.state = {
             color: props.color,
         }
     }
@@ -27,7 +26,7 @@ class Square extends React.Component {
 
     hoverLeave(){
         this.setState({color: this.hoverTemp});
-        this.props.squareLeft()
+        this.props.squareLeft();
     }
 
     hoverEnter(){
@@ -39,8 +38,8 @@ class Square extends React.Component {
     render() {
          return (<div className="square"
                 style={{backgroundColor: this.state.color}}
-                onMouseLeave={() => this.hoverLeave()}
-                onMouseEnter ={() => this.hoverEnter()}
+                onMouseLeave = {() => this.hoverLeave()}
+                onMouseEnter = {() => this.hoverEnter()}
                 onClick = { () => this.props.onClick()}>
                           {}
                  </div>);
@@ -48,57 +47,29 @@ class Square extends React.Component {
 }
 
 
-
-class Canvas extends React.Component {
-
-    constructor(props) {
-        super(props);
-        this.numRows=20;
-        this.numCols=20;
-        this.state={
-            firstRender: true,
-            boardInfo: ""
-        }
-    }
-
-    handleInfoChange = (boardInfo) =>{
-        this.setState({firstRender:false, boardInfo: boardInfo});
-    }
-
-    render() {
-        return (
-            <div className = "game">
-                <BitMap shouldRender = {this.state.firstRender} onPixelHover = {this.handleInfoChange}/>
-                <div className = "row">
-                    <div className="large-6 columns game-info">
-                        {this.state.boardInfo}
-                    </div>
-                    <div className="large-6 columns input">
-                        {"blah"}
-                    </div>
-                </div>
-            </div>
-       );
-    }
-}
 class BitMap extends React.Component {
 
     constructor(props) {
         super(props);
         this.numRows=20;
         this.numCols=20;
-
+        this.hasChanged = false;
         this.state = {
             squares: Array(this.numRows*this.numCols).fill(null),
         }
     }
 
-    shouldComponentUpdate(){
-        return this.props.shouldRender
+
+    shouldComponentUpdate(nextProps, nextState){
+        if (this.hasChanged) {
+            this.hasChanged = false;
+            return true;
+        }
+        return false
     }
 
     componentDidMount() {
-        getWeb3
+         getWeb3
         .then(results => {
             web3 = results.web3
             // Instantiate contract once web3 provided.
@@ -119,6 +90,7 @@ class BitMap extends React.Component {
                          let elem = logs[i].args;
                          squares[elem.pixelNumber.c[0]] = new PixelElement("#000000", elem.amountPaid.c[0]);
                     }
+                    this.hasChanged = true;
                     this.setState({squares: squares})
                  })
 
@@ -130,6 +102,7 @@ class BitMap extends React.Component {
                       let pixelNum = elem.pixelNumber.c[0];
                       const squares = this.state.squares.slice();
                       squares[pixelNum]= new PixelElement("#000000", elem.amountPaid.c[0]);
+                      this.hasChanged = true;
                       this.setState({squares: squares});
                 })
             })
@@ -202,6 +175,37 @@ class BitMap extends React.Component {
         );
     }
 }
+
+class Canvas extends React.Component {
+
+    constructor(props) {
+        super(props);
+        this.state={
+            boardInfo: ""
+        }
+    }
+
+    handleInfoChange = (boardInfo) =>{
+        this.setState({boardInfo: boardInfo});
+    }
+
+    render() {
+        return (
+            <div className = "game">
+                <BitMap onPixelHover = {this.handleInfoChange} />
+                <div className = "row">
+                    <div className="large-6 columns game-info">
+                        {this.state.boardInfo}
+                    </div>
+                    <div className="large-6 columns input">
+                        {"blah"}
+                    </div>
+                </div>
+            </div>
+       );
+    }
+}
+
 
 class PixelElement {
     constructor(color, amountPaid) {
